@@ -6,7 +6,6 @@ library(DT) # data table - should now load
 library(leaflet)
 library(MetBrewer)
 library(shinyalert)
-library(viridis)
 
 # remember to commit to git
 
@@ -27,6 +26,8 @@ ipcc_zones <- vect(
     "www/IPCC_Climate_Zones_Map_vector/Vector/ipcc_climate_1985-2015.shp"
 )
 
+ipcc_zones$Field2 <- ifelse(ipcc_zones$Field2 == "Tropical Moist", "Tropical Wet", ipcc_zones$Field2)
+
 names(ipcc_zones) <- names(climate_key[-1])
 
 marine_ecoregions <- vect(
@@ -45,7 +46,7 @@ ui <- fluidPage(
         # Note the wrapping of the string in HTML()
         tags$style(HTML("
         .legend {
-        height: 270px;
+        height: 235px;
         overflow-y: auto;
         }
 
@@ -309,6 +310,7 @@ server <- function(input, output, session) {
         # shapefiles must be uploaded as zipped folders
         # the below code then unzips the folder if shapefiles are uploaded
         # if not (i.e. gpkg uploaded) then the 'else' function runs
+        
         if (any(tools::file_ext(input$projectvector) == "zip")) {
             tmp <- file.path(tempdir(), "usr_shp")
             clean_path <- gsub("\\\\", "/", input$projectvector$datapath)
@@ -360,6 +362,23 @@ server <- function(input, output, session) {
         return(soc)
     })
 
+
+    # mean SOC
+    meansoc_data <- reactive({
+        req(soc_tiles())
+        boundaries_sf <- st_as_sf(boundaries()) |>
+            st_union()
+        meansoc_data <- exact_extract(
+            (soc_tiles()),
+            boundaries_sf,
+            "mean",
+            force_df = TRUE
+        )
+        return(meansoc_data)
+    })
+
+
+    #total SOC
     totalsoc_data <- reactive({
         req(soc_tiles())
         # exactextract doesn't love terra objects so we convert to an sf one
@@ -375,20 +394,6 @@ server <- function(input, output, session) {
             force_df = TRUE
         )
         return(totalsoc_data)
-    })
-
-    # mean SOC
-    meansoc_data <- reactive({
-        req(soc_tiles())
-        boundaries_sf <- st_as_sf(boundaries()) |>
-            st_union()
-        meansoc_data <- exact_extract(
-            (soc_tiles()),
-            boundaries_sf,
-            "mean",
-            force_df = TRUE
-        )
-        return(meansoc_data)
     })
 
     # project area
@@ -501,8 +506,8 @@ server <- function(input, output, session) {
 
         ipcc_color <- colorFactor(
             palette = c(
-                met.brewer("Hokusai1", type = "discrete"),
-                n = "12"
+                met.brewer("Hokusai1", type = "discrete")
+                # n = "11"
             ),
             na.color = "transparent",
             levels = ipcc_zones$climate_zone,
@@ -526,6 +531,7 @@ server <- function(input, output, session) {
                 provider = providers$CartoDB.Positron,
                 options = leafletOptions(pane = "other")
             ) |>
+            
             addPolygons(
                 options = leafletOptions(pane = "boundaries"),
                 data = boundaries(),
