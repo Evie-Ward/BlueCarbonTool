@@ -1,3 +1,6 @@
+# Coastal Blue Carbon App to go alongside the mangrove conservation module as part of the Plan Vivo Coastal Blue Carbon methodology
+# Author: Evie Ward; evie.ward@outlook.com
+
 library(shiny)
 library(terra) # for vectors and rasters and deals with shapefiles
 library(sf) # also for vectors because the exactextract package hates terra
@@ -9,12 +12,9 @@ library(shinyalert)
 
 # remember to commit to git
 
-# break into three parts
 
 # Part 1 - base stuff that's needed to be loaded in on front end and back end
-# for non-reactive objects
-# <- is for assigning something to that variable (similar to equal sign)
-# an object is anything we've named and assigned
+
 
 climate_zones <- rast(
     "www/IPCC_Climate_Zones_Map_raster/Raster/ipcc_climate_1985-2015.tif"
@@ -94,25 +94,28 @@ ui <- fluidPage(
                     6,
                     tags$div(
                         id = "title",
-                        "Blue Carbon Tool - v0.1",
+                        "Plan Vivo Coastal Blue Carbon Tool",
                         textAlign = "left"
                     )
                 ),
-                column(
-                    6,
-                    tags$a(
-                        href = "https://www.planvivo.org",
-                        target = "_blank",
-                        id = "logo",
-                        img(
-                            src = "Images/logo_white.png",
-                            height = "60px",
-                            align = "right"
-                        )
-                    )
-                )
+
+#to add logo if wanted, commented out as currently undergoing a rebrand, so didn't want to include an outdated logo
+
+                # column(
+                #     6,
+                #     tags$a(
+                #         href = "https://www.planvivo.org",
+                #         target = "_blank",
+                #         id = "logo",
+                #         img(
+                #             src = "Images/logo_white.png",
+                #             height = "60px",
+                #             align = "right"
+                #         )
+                #     )
+                # )
             ),
-            windowTitle = "Plan Vivo Blue Carbon Tool"
+            windowTitle = "Plan Vivo Coastal Blue Carbon Tool"
         )
     ),
 
@@ -164,7 +167,7 @@ ui <- fluidPage(
                     br(),
                     tags$div(
                         id = "soctext",
-                        textOutput("meansoc_text"),
+                        textOutput("mediansoc_text"),
                         textOutput("totalsoc_text")
                     )
                 ),
@@ -191,11 +194,11 @@ server <- function(input, output, session) {
             size = "m",
             text = paste(
                 "<h3 style='font-size:20px; text-align: left'><strong>",
-                "*CONTEXT AND INTRO HERE*",
+                # "*CONTEXT AND INTRO HERE*",
                 "</strong>",
                 "</h3>",
                 "<p style = 'font-size:16px; text-align: left'>",
-                "...",
+                # "...",
                 "</p>",
                 "<p style = 'font-size:16px; text-align: left'>",
                 "Note: area given in the summary table is calculated for the
@@ -363,19 +366,26 @@ server <- function(input, output, session) {
     })
 
 
-    # mean SOC
-    meansoc_data <- reactive({
+    # median SOC
+    mediansoc_data <- reactive({
         req(soc_tiles())
         boundaries_sf <- st_as_sf(boundaries()) |>
             st_union()
-        meansoc_data <- exact_extract(
+        mediansoc_data <- exact_extract(
             (soc_tiles()),
             boundaries_sf,
-            "mean",
+            "median",
             force_df = TRUE
         )
-        return(meansoc_data)
+        return(mediansoc_data)
     })
+
+    # convert from C to CO2e
+    mediansocco2e_data <- reactive({
+        mediansocco2e_data <- mediansoc_data() * 44/12
+        return(mediansocco2e_data)
+    })
+
 
 
     #total SOC
@@ -395,6 +405,13 @@ server <- function(input, output, session) {
         )
         return(totalsoc_data)
     })
+
+     # convert from C to CO2e
+    totalsocco2e_data <- reactive({
+        totalsocco2e_data <- totalsoc_data() * 44/12
+        return(totalsocco2e_data)
+    })
+   
 
     # project area
     project_area <- reactive({
@@ -435,16 +452,16 @@ server <- function(input, output, session) {
     extracted_data <- reactive({
         extracted_data <- data.frame(
             sum_area(),
-            meansoc_data(),
-            totalsoc_data(),
+            mediansocco2e_data(),
+            totalsocco2e_data(),
             ipcc_zone(),
             unique(ecoregion_data()$PROVINCE)
         )
         # change names of columns
         names(extracted_data) <- c(
             "Project Area (ha)",
-            "Mean SOC (Mg C ha-1)",
-            "Total SOC (Mg C)",
+            "Median SOC (t CO2e ha-1)",
+            "Total SOC (t CO2e)",
             "IPCC Climate Zone",
             "Marine Province"
         )
@@ -476,21 +493,21 @@ server <- function(input, output, session) {
         )
     })
 
-    output$meansoc_text <- renderText({
-        req(meansoc_data())
+    output$mediansoc_text <- renderText({
+        req(mediansocco2e_data())
         paste(
-            "Mean SOC per hectare for mangroves in the project area: ",
-            meansoc_data(),
-            "Mg C ha-1"
+            "Median SOC per hectare for mangroves in the project area: ",
+            mediansocco2e_data(),
+            "t CO2e ha-1"
         )
     })
 
     output$totalsoc_text <- renderText({
-        req(totalsoc_data())
+        req(totalsocco2e_data())
         paste(
             "Total SOC for mangroves in the project area: ",
-            totalsoc_data(),
-            "Mg C"
+            totalsocco2e_data(),
+            "t CO2e"
         )
     })
 
@@ -601,5 +618,8 @@ server <- function(input, output, session) {
 }
 
 
-# call to shinyapp function
+# # call to shinyapp function
 shinyApp(ui, server)
+
+# library(rsconnect)
+# deployApp()

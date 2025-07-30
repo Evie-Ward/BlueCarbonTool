@@ -5,6 +5,6 @@ account: planvivo
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10619375
-bundleId: 8006740
+bundleId: 10702455
 url: https://planvivo.shinyapps.io/bluecarbontool/
 version: 1
